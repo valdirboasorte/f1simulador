@@ -1,72 +1,118 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, HTTPException
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
+import random
 import uuid
+from pathlib import Path
+from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime, timezone
-
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
+from f1_data import SEASONS, get_all_years, get_season
+from simulator import simulate_season
+from news_generator import generate_news
+
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Create the main app without a prefix
-app = FastAPI()
-
-# Create a router with the /api prefix
+app = FastAPI(title="F1 Alt Reality Simulator")
 api_router = APIRouter(prefix="/api")
 
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+class SimulateRequest(BaseModel):
+    year: int
+    seed: Optional[int] = None
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
 
-# Add your routes to the router instead of directly to app
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "F1 Alt Reality Simulator API", "seasons": len(SEASONS)}
 
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
 
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
+@api_router.get("/seasons")
+async def list_seasons():
+    years = get_all_years()
+    return [
+        {
+            "year": y,
+            "champion": SEASONS[y]["champion"],
+            "champion_team": SEASONS[y]["champion_team"],
+            "constructors_champion": SEASONS[y]["constructors_champion"],
+            "num_races": SEASONS[y]["num_races"],
+        }
+        for y in years
+    ]
 
-# Include the router in the main app
+
+@api_router.get("/seasons/{year}")
+async def season_detail(year: int):
+    season = get_season(year)
+    if not season:
+        raise HTTPException(status_code=404, detail="Season not found")
+    return {
+        "year": year,
+        "champion": season["champion"],
+        "champion_team": season["champion_team"],
+        "constructors_champion": season["constructors_champion"],
+        "num_races": season["num_races"],
+        "drivers": [
+            {"name": n, "team": t, "rating": r} for n, t, r in season["drivers"]
+        ],
+    }
+
+
+@api_router.post("/simulate")
+async def simulate(req: SimulateRequest):
+    if req.year not in SEASONS:
+        raise HTTPException(status_code=404, detail="Season not found")
+    seed = req.seed if req.seed is not None else random.randint(1, 10**9)
+    sim = simulate_season(req.year, seed=seed)
+    if not sim:
+        raise HTTPException(status_code=500, detail="Simulation failed")
+
+    # Generate news via Gemini
+    news = await generate_news(sim)
+    sim_id = str(uuid.uuid4())
+    doc = {
+        "id": sim_id,
+        "year": req.year,
+        "seed": seed,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "simulation": sim,
+        "news": news,
+    }
+    await db.simulations.insert_one(doc)
+    return {
+        "id": sim_id,
+        "year": req.year,
+        "seed": seed,
+        "simulation": sim,
+        "news": news,
+    }
+
+
+@api_router.get("/simulations/{sim_id}")
+async def get_simulation(sim_id: str):
+    doc = await db.simulations.find_one({"id": sim_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    return doc
+
+
+@api_router.get("/simulations")
+async def list_simulations(limit: int = 20):
+    cursor = db.simulations.find({}, {"_id": 0, "simulation.races": 0}).sort("created_at", -1).limit(limit)
+    docs = await cursor.to_list(limit)
+    return docs
+
+
 app.include_router(api_router)
 
 app.add_middleware(
@@ -77,12 +123,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
