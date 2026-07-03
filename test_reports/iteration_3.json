@@ -1,0 +1,20 @@
+{
+  "summary": "Backend + frontend verified for F1 sim updates: chronological race calendars, fast finish (no AI), and normal finish (news on last race).",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "GET /api/seasons/2020 returns valid data (17 races, Hamilton)",
+    "POST /api/simulate 2020 circuits start Sakhir/Jeddah/Melbourne (era-correct)",
+    "POST /api/simulate 1998 circuits start Interlagos/Melbourne/Sepang/Sakhir (era-correct)",
+    "POST /api/simulate 1985 circuits start Kyalami/Jarama/Long Beach/Interlagos (era-correct)",
+    "POST /api/simulate 1965 circuits start Silverstone/Monaco/Indianapolis (era-correct)",
+    "POST /api/simulations/{id}/finish?fast=true: 138-162ms, finished=true, races[-1].news=None, standings valid across 4 eras",
+    "POST /api/simulations/{id}/finish (no fast): last race gets AI news dict with title 'CHARLES LECLERC VENCE EM BAKU'; only last race has news (0 others)",
+    "Frontend SimulationPage: both finish-all-button and finish-fast-button render",
+    "Fast finish click: season completed in 0.19s UI-side, season-finished-label shown, champion=Lewis Hamilton, 0 race-news elements rendered"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}

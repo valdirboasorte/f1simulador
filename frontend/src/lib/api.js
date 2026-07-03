@@ -11,7 +11,8 @@ export const createSimulation = (year, seed, realityId) =>
   api.post("/simulate", { year, seed, reality_id: realityId }).then((r) => r.data);
 export const fetchSimulation = (id) => api.get(`/simulations/${id}`).then((r) => r.data);
 export const runNextRace = (id) => api.post(`/simulations/${id}/next`).then((r) => r.data);
-export const finishSimulation = (id) => api.post(`/simulations/${id}/finish`).then((r) => r.data);
+export const finishSimulation = (id, fast = false) =>
+  api.post(`/simulations/${id}/finish${fast ? "?fast=true" : ""}`).then((r) => r.data);
 export const generateNews = (id) => api.post(`/simulations/${id}/news`).then((r) => r.data);
 
 // Minha Realidade

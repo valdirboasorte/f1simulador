@@ -196,7 +196,19 @@ const SimulationPage = () => {
     if (!data || busy) return;
     setBusy(true);
     try {
-      const upd = await finishSimulation(id);
+      const upd = await finishSimulation(id, false);
+      setData(upd);
+      setLatestRound(upd.current_race);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onFinishFast = async () => {
+    if (!data || busy) return;
+    setBusy(true);
+    try {
+      const upd = await finishSimulation(id, true);
       setData(upd);
       setLatestRound(upd.current_race);
     } finally {
@@ -307,6 +319,14 @@ const SimulationPage = () => {
                     className="flex-1 border border-[#262626] text-white font-bold uppercase tracking-[0.22em] text-xs py-4 hover:border-white disabled:opacity-50 transition-colors"
                   >
                     Rodar Tudo »»
+                  </button>
+                  <button
+                    onClick={onFinishFast}
+                    disabled={busy}
+                    data-testid="finish-fast-button"
+                    className="flex-1 border border-[#00F0FF] text-[#00F0FF] font-bold uppercase tracking-[0.22em] text-xs py-4 hover:bg-[#00F0FF] hover:text-black disabled:opacity-50 transition-colors"
+                  >
+                    ⚡ Rápido (s/ IA)
                   </button>
                 </>
               ) : (

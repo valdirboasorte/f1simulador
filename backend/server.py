@@ -159,13 +159,11 @@ async def next_race(sim_id: str):
 
 
 @api_router.post("/simulations/{sim_id}/finish")
-async def finish_all(sim_id: str):
-    """Simulate all remaining races. News is generated only for the FINAL race
-    to avoid a very long request. Individual per-race news for skipped rounds
-    can be generated later via /race/{round}/news if needed."""
+async def finish_all(sim_id: str, fast: bool = False):
+    """Simulate all remaining races. If fast=true, skip AI news entirely."""
     state = await _load_state(sim_id)
     simulate_all_remaining(state)
-    if state["races"]:
+    if not fast and state["races"]:
         last = state["races"][-1]
         if not last.get("news"):
             last["news"] = await generate_race_news(state, last)

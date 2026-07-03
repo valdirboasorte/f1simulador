@@ -173,9 +173,9 @@ SEASONS = {
 # Iconic circuits pool for each era. We select a subset of size num_races.
 CIRCUITS_BY_ERA = {
     (1950, 1969): ["Silverstone","Monaco","Indianapolis","Spa-Francorchamps","Reims","Monza","Nurburgring","Zandvoort","Aintree","Sebring","Watkins Glen","East London","Riverside","Rouen","Mexico City","Kyalami","Clermont-Ferrand","Brands Hatch"],
-    (1970, 1989): ["Kyalami","Jarama","Monaco","Zolder","Zandvoort","Paul Ricard","Silverstone","Nurburgring","Osterreichring","Monza","Watkins Glen","Interlagos","Long Beach","Imola","Detroit","Estoril","Adelaide","Suzuka","Hockenheim","Spa-Francorchamps","Montreal"],
-    (1990, 2005): ["Interlagos","Imola","Monaco","Barcelona","Montreal","Magny-Cours","Silverstone","Hockenheim","Hungaroring","Spa-Francorchamps","Monza","Nurburgring","Suzuka","Adelaide","Estoril","Kyalami","Buenos Aires","Melbourne","Sepang","Indianapolis","Bahrain","Shanghai","Istanbul"],
-    (2006, 2025): ["Melbourne","Sepang","Sakhir","Shanghai","Barcelona","Monaco","Montreal","Silverstone","Hockenheim","Hungaroring","Spa-Francorchamps","Monza","Marina Bay","Suzuka","Interlagos","Yas Marina","Austin","Baku","Zandvoort","Imola","Miami","Las Vegas","Jeddah","Losail","Mexico City","Portimao","Mugello","Nurburgring","Istanbul","Paul Ricard","Sochi"],
+    (1970, 1989): ["Kyalami","Jarama","Long Beach","Interlagos","Imola","Zolder","Monaco","Detroit","Montreal","Paul Ricard","Silverstone","Hockenheim","Osterreichring","Zandvoort","Monza","Estoril","Suzuka","Adelaide","Nurburgring"],
+    (1990, 2005): ["Interlagos","Melbourne","Sepang","Sakhir","Imola","Barcelona","Monaco","Montreal","Nurburgring","Magny-Cours","Silverstone","Hockenheim","Hungaroring","Spa-Francorchamps","Monza","Indianapolis","Shanghai","Suzuka","Estoril","Adelaide","Buenos Aires","Kyalami","Istanbul"],
+    (2006, 2025): ["Sakhir","Jeddah","Melbourne","Suzuka","Shanghai","Miami","Imola","Monaco","Barcelona","Montreal","Spielberg","Silverstone","Hungaroring","Spa-Francorchamps","Zandvoort","Monza","Baku","Marina Bay","Austin","Mexico City","Interlagos","Las Vegas","Losail","Yas Marina","Hockenheim","Nurburgring","Sochi","Istanbul","Paul Ricard","Portimao","Mugello","Sepang"],
 }
 
 def get_circuits_for_year(year: int, num: int):
