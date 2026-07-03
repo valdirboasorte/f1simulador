@@ -23,6 +23,7 @@ from simulator import (
     build_summary,
 )
 from news_generator import generate_news, generate_race_news
+from whatif_events import event_for_year, apply_effects, EVENTS as WHATIF_EVENTS
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -110,6 +111,26 @@ async def create_simulation(req: SimulateRequest):
     state = create_initial_state(req.year, seed)
     if not state:
         raise HTTPException(status_code=500, detail="Failed to init simulation")
+
+    # If linked to a reality, apply cumulative what-if effects to the roster
+    if req.reality_id:
+        reality = await db.realities.find_one({"id": req.reality_id}, {"_id": 0})
+        if not reality:
+            raise HTTPException(status_code=404, detail="Reality not found")
+        # Block simulate if there's a pending event
+        pending = event_for_year(req.year, [e["event_id"] for e in reality.get("resolved_events", [])])
+        if pending:
+            raise HTTPException(status_code=400, detail=f"Resolve event first: {pending['id']}")
+        effects = reality.get("applied_effects", [])
+        modified = apply_effects(state["drivers"], req.year, effects)
+        if not modified:
+            raise HTTPException(status_code=400, detail="All drivers removed by effects")
+        state["drivers"] = modified
+        # Rebuild point/win/podium bookkeeping dicts to match new roster
+        state["driver_points"] = {d["name"]: 0 for d in modified}
+        state["driver_wins"] = {d["name"]: 0 for d in modified}
+        state["driver_podiums"] = {d["name"]: 0 for d in modified}
+
     state["id"] = str(uuid.uuid4())
     state["created_at"] = datetime.now(timezone.utc).isoformat()
     state["reality_id"] = req.reality_id
@@ -206,9 +227,11 @@ def _new_reality(name: str) -> dict:
         "name": name,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "current_year": FIRST_YEAR,
-        "driver_stats": {},  # name -> {wins, podiums, championships, points_career, teams:[]}
-        "constructor_stats": {},  # team -> {wins, podiums, championships, points_career}
-        "seasons": [],  # committed seasons
+        "driver_stats": {},
+        "constructor_stats": {},
+        "seasons": [],
+        "resolved_events": [],   # [{event_id, year, choice_id, choice_label}]
+        "applied_effects": [],   # flat list of effect dicts
         "finished": False,
     }
 
@@ -238,7 +261,39 @@ async def get_reality(rid: str):
     doc = await db.realities.find_one({"id": rid}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Reality not found")
+    # attach pending event if any
+    resolved_ids = [e["event_id"] for e in doc.get("resolved_events", [])]
+    doc["pending_event"] = event_for_year(doc["current_year"], resolved_ids)
     return doc
+
+
+@api_router.post("/realities/{rid}/resolve")
+async def resolve_event(rid: str, payload: dict):
+    """Body: {year, choice_id}. Applies chosen effects to the reality."""
+    reality = await db.realities.find_one({"id": rid}, {"_id": 0})
+    if not reality:
+        raise HTTPException(status_code=404, detail="Reality not found")
+    year = payload.get("year")
+    choice_id = payload.get("choice_id")
+    if year != reality["current_year"]:
+        raise HTTPException(status_code=400, detail="Year mismatch")
+    resolved_ids = [e["event_id"] for e in reality.get("resolved_events", [])]
+    ev = event_for_year(year, resolved_ids)
+    if not ev:
+        raise HTTPException(status_code=400, detail="No pending event for this year")
+    choice = next((c for c in ev["choices"] if c["id"] == choice_id), None)
+    if not choice:
+        raise HTTPException(status_code=400, detail="Invalid choice_id")
+    reality.setdefault("applied_effects", []).extend(choice.get("effects", []))
+    reality.setdefault("resolved_events", []).append({
+        "event_id": ev["id"],
+        "year": year,
+        "choice_id": choice_id,
+        "choice_label": choice["label"],
+    })
+    await db.realities.replace_one({"id": rid}, reality)
+    reality["pending_event"] = None
+    return reality
 
 
 @api_router.post("/realities/{rid}/commit/{sim_id}")

@@ -5,6 +5,7 @@ import {
   listRealities,
   fetchReality,
   createSimulation,
+  resolveEvent,
 } from "../lib/api";
 import { Header } from "../components/Layout";
 
@@ -106,6 +107,7 @@ export const RealityDetailPage = () => {
   const navigate = useNavigate();
   const [reality, setReality] = useState(null);
   const [starting, setStarting] = useState(false);
+  const [resolving, setResolving] = useState(false);
 
   useEffect(() => {
     fetchReality(id).then(setReality).catch(() => setReality(false));
@@ -118,6 +120,16 @@ export const RealityDetailPage = () => {
       navigate(`/simulacao/${sim.id}`);
     } finally {
       setStarting(false);
+    }
+  };
+
+  const onResolve = async (choiceId) => {
+    setResolving(true);
+    try {
+      const upd = await resolveEvent(id, reality.current_year, choiceId);
+      setReality(upd);
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -173,7 +185,7 @@ export const RealityDetailPage = () => {
             </div>
           </div>
           <div className="md:col-span-4">
-            {!reality.finished ? (
+            {!reality.finished && !reality.pending_event ? (
               <button
                 onClick={startYear}
                 disabled={starting}
@@ -182,6 +194,10 @@ export const RealityDetailPage = () => {
               >
                 {starting ? "Preparando..." : `▶ Rodar ${reality.current_year}`}
               </button>
+            ) : reality.pending_event ? (
+              <div className="text-center label text-[#FF3B30] py-6 border border-[#FF3B30]">
+                ⚠ EVENTO PENDENTE — ESCOLHA ABAIXO
+              </div>
             ) : (
               <div className="text-center label text-[#00FF66] py-6 border border-[#00FF66]">
                 ✓ TIMELINE COMPLETA (1950—2025)
@@ -190,6 +206,53 @@ export const RealityDetailPage = () => {
           </div>
         </div>
       </section>
+
+      {/* What-If Event */}
+      {reality.pending_event && (
+        <section className="border-b border-[#FF3B30]/40 bg-[#1a0a0a]" data-testid="pending-event">
+          <div className="max-w-[1400px] mx-auto px-6 py-12">
+            <div className="label text-[#FF3B30] mb-3">// PONTO DE INFLEXÃO · {reality.current_year}</div>
+            <h2 className="font-head font-black uppercase text-3xl sm:text-4xl tracking-tighter mb-4">
+              {reality.pending_event.title}
+            </h2>
+            <p className="text-neutral-300 text-sm mb-8 max-w-3xl leading-relaxed">
+              {reality.pending_event.description}
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {reality.pending_event.choices.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => onResolve(c.id)}
+                  disabled={resolving}
+                  data-testid={`choice-${c.id}`}
+                  className="text-left border border-[#262626] bg-[#0A0A0A] p-6 hover:border-[#E4FF00] hover:bg-[#141414] disabled:opacity-50 transition-colors"
+                >
+                  <div className="label text-[#E4FF00] mb-3">{c.id === "real" ? "REALIDADE" : "ALTERNATIVA"}</div>
+                  <h4 className="font-head font-black uppercase text-lg tracking-tight leading-tight mb-3">
+                    {c.label}
+                  </h4>
+                  <p className="text-neutral-400 text-xs leading-relaxed">{c.detail}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Resolved events log */}
+      {reality.resolved_events && reality.resolved_events.length > 0 && (
+        <section className="max-w-[1400px] mx-auto px-6 py-8 border-b border-[#262626]" data-testid="resolved-events">
+          <div className="label text-neutral-500 mb-3">// ESCOLHAS FEITAS NESTA REALIDADE</div>
+          <div className="flex flex-wrap gap-2">
+            {reality.resolved_events.map((e) => (
+              <span key={e.event_id} className="border border-[#262626] px-3 py-2 text-xs">
+                <span className="font-mono-num text-[#E4FF00] mr-2">{e.year}</span>
+                <span className="text-neutral-300">{e.choice_label}</span>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Records */}
       {reality.seasons.length > 0 ? (

@@ -20,3 +20,5 @@ export const listRealities = () => api.get("/realities").then((r) => r.data);
 export const fetchReality = (id) => api.get(`/realities/${id}`).then((r) => r.data);
 export const commitSeason = (rid, simId) =>
   api.post(`/realities/${rid}/commit/${simId}`).then((r) => r.data);
+export const resolveEvent = (rid, year, choiceId) =>
+  api.post(`/realities/${rid}/resolve`, { year, choice_id: choiceId }).then((r) => r.data);
