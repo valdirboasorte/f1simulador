@@ -1,116 +1,153 @@
-"""News article generation via Gemini 3 Flash (in Portuguese)."""
+"""News article generation via Gemini 3.5 Flash (Portuguese).
+
+Two entry points:
+- generate_race_news(state, race): one short article about a single race event
+- generate_news(simulation): 4 wrap-up articles at end of season (legacy)
+"""
 import os
 import json
 import re
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 _KEY = os.environ.get("EMERGENT_LLM_KEY")
+_MODEL = ("gemini", "gemini-3.5-flash")
 
 
-def _build_prompt(simulation: dict) -> str:
+def _extract_json(text: str):
+    text = text.strip()
+    # try object first
+    m = re.search(r"\{.*\}", text, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            pass
+    m = re.search(r"\[.*\]", text, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except Exception:
+            pass
+    return None
+
+
+def _race_prompt(state: dict, race: dict) -> str:
+    year = state["year"]
+    round_n = race["round"]
+    total = state["total_races"]
+    circuit = race["circuit"]
+    podium = race["podium"]
+    dnfs = [r for r in race["results"] if r.get("dnf")]
+    snap = race.get("standings_snapshot") or {}
+    top_drivers = (snap.get("drivers") or [])[:5]
+    leader = top_drivers[0] if top_drivers else None
+    second = top_drivers[1] if len(top_drivers) > 1 else None
+    gap = (leader["points"] - second["points"]) if leader and second else 0
+
+    podium_txt = ", ".join(
+        f"{p['position']}º {p['driver']} ({p['team']})" for p in podium
+    ) or "sem pódio"
+    dnf_txt = ", ".join(d["driver"] for d in dnfs[:4]) or "nenhum abandono relevante"
+    top_txt = " | ".join(
+        f"{i+1}º {d['driver']} {d['points']}pt" for i, d in enumerate(top_drivers)
+    )
+
+    return f"""Você é jornalista esportivo brasileiro cobrindo AO VIVO a temporada {year} de F1 em uma REALIDADE ALTERNATIVA.
+
+CORRIDA ATUAL: Etapa {round_n}/{total} · {circuit}
+Pódio: {podium_txt}
+Abandonos: {dnf_txt}
+Classificação após esta corrida: {top_txt}
+Vantagem do líder: {gap} pts
+
+TAREFA: Escreva UMA notícia curta em PORTUGUÊS DO BRASIL sobre ESTA corrida específica. Tom de jornal esportivo, dramático mas factual. Retorne APENAS um JSON (sem markdown, sem ```), nesta estrutura:
+{{"title": "manchete de até 90 chars", "subtitle": "linha fina", "body": "2 parágrafos curtos separados por \\n\\n", "tag": "CORRIDA"}}
+
+Regras:
+- Cite APENAS pilotos e equipes que aparecem acima.
+- A notícia deve refletir o evento REAL desta corrida (vencedor, disputa, DNF marcante ou mudança na liderança).
+- NÃO inventar.
+- Retorne SÓ o JSON."""
+
+
+async def generate_race_news(state: dict, race: dict) -> dict:
+    """Return a single news dict {title, subtitle, body, tag}."""
+    if not _KEY:
+        return _fallback_race_news(race)
+    try:
+        chat = LlmChat(
+            api_key=_KEY,
+            session_id=f"f1-race-{state['year']}-{race['round']}-{state.get('seed', 0)}",
+            system_message="Você é redator do jornal esportivo GRID no Brasil, especialista em F1.",
+        ).with_model(*_MODEL)
+        response = await chat.send_message(UserMessage(text=_race_prompt(state, race)))
+        text = response if isinstance(response, str) else str(response)
+        data = _extract_json(text)
+        if isinstance(data, dict) and data.get("title"):
+            data.setdefault("tag", "CORRIDA")
+            data.setdefault("subtitle", "")
+            data.setdefault("body", "")
+            return data
+    except Exception as e:
+        print(f"[race-news] error: {e}")
+    return _fallback_race_news(race)
+
+
+def _fallback_race_news(race: dict) -> dict:
+    if race["podium"]:
+        w = race["podium"][0]
+        title = f"{w['driver'].upper()} VENCE EM {race['circuit'].upper()}"
+        body = f"{w['driver']} cruzou a linha de chegada em primeiro no GP disputado em {race['circuit']}, marcando mais uma vitória para a {w['team']}.\n\nA corrida teve pódio completado por " + \
+               ", ".join(f"{p['driver']}" for p in race["podium"][1:]) + "."
+    else:
+        title = f"CAOS EM {race['circuit'].upper()}"
+        body = f"A etapa {race['round']} em {race['circuit']} terminou sem pódio registrado."
+    return {"title": title, "subtitle": f"Etapa {race['round']}", "body": body, "tag": "CORRIDA"}
+
+
+# ---- Legacy season wrap-up (kept for optional call) ----
+
+def _wrap_prompt(simulation: dict) -> str:
     s = simulation["summary"]
     year = s["year"]
     champion = s["champion"]
     real = s["real_champion"]
     runner = s["runner_up"]
     ctor = s["constructor_champion"]
-    real_ctor = s["real_constructor_champion"]
-
-    # Sample a few races (first, mid, last, and any surprise winner)
-    races = simulation["races"]
-    sample = []
-    if races:
-        sample.append(races[0])
-        sample.append(races[len(races) // 2])
-        sample.append(races[-1])
-    race_lines = []
-    for r in sample:
-        if r["podium"]:
-            p = r["podium"]
-            race_lines.append(
-                f"- Etapa {r['round']} ({r['circuit']}): 1º {p[0]['driver']} ({p[0]['team']})"
-                + (f", 2º {p[1]['driver']}" if len(p) > 1 else "")
-                + (f", 3º {p[2]['driver']}" if len(p) > 2 else "")
-            )
     top5 = simulation["driver_standings"][:5]
     top5_lines = [
-        f"{i+1}º {d['driver']} ({d['team']}) — {d['points']} pts, {d['wins']} vitórias"
+        f"{i+1}º {d['driver']} ({d['team']}) — {d['points']} pts, {d['wins']} vit."
         for i, d in enumerate(top5)
     ]
-
     upset = "SIM" if s["upset"] else "NÃO"
+    return f"""Cobertura pós-temporada F1 {year} em realidade alternativa.
+- Campeão: {champion['driver']} ({champion['team']}) {champion['points']} pts
+- Vice: {runner['driver']} ({runner['team']}) {runner['points']} pts
+- Real: {real['driver']}
+- Reviravolta? {upset}
+- Construtores: {ctor['team']} — {ctor['points']} pts
 
-    return f"""Você é um jornalista esportivo brasileiro cobrindo a temporada {year} de Fórmula 1 em uma realidade alternativa.
-
-DADOS DA TEMPORADA SIMULADA {year}:
-- Campeão simulado: {champion['driver']} ({champion['team']}) — {champion['points']} pontos, {champion['wins']} vitórias
-- Vice: {runner['driver']} ({runner['team']}) — {runner['points']} pts
-- Campeão real histórico: {real['driver']} ({real['team']})
-- É uma REVIRAVOLTA vs realidade? {upset}
-- Construtores simulado: {ctor['team']} — {ctor['points']} pts
-- Construtores real: {real_ctor}
-
-TOP 5 SIMULADO:
+TOP 5:
 {chr(10).join(top5_lines)}
 
-CORRIDAS DE DESTAQUE:
-{chr(10).join(race_lines)}
-
-TAREFA: Escreva 4 notícias curtas em PORTUGUÊS DO BRASIL, com tom de jornal esportivo, dramático mas realista. Retorne APENAS um JSON válido (sem markdown, sem ```), no formato:
-[
-  {{"title": "manchete impactante", "subtitle": "linha fina descritiva", "body": "3-4 parágrafos separados por \\n\\n", "tag": "CAMPEONATO|CORRIDA|EQUIPES|ANÁLISE"}},
-  ...
-]
-
-Regras:
-- Manchetes em CAIXA ALTA parcial permitido, curtas (max 90 caracteres).
-- Corpo: 3-4 parágrafos, factual mas com narrativa. Cite pilotos, equipes, circuitos.
-- Uma notícia deve ser sobre o campeão, uma sobre a disputa de construtores, uma sobre uma corrida marcante, e uma análise geral da temporada.
-- NÃO invente pilotos que não estejam na lista. Use apenas os nomes fornecidos.
-- Retorne APENAS o JSON, sem texto adicional."""
+Retorne APENAS um JSON array com 3 notícias em pt-BR:
+[{{"title":"...","subtitle":"...","body":"2-3 parágrafos","tag":"CAMPEONATO|EQUIPES|ANÁLISE"}}]"""
 
 
 async def generate_news(simulation: dict) -> list[dict]:
     if not _KEY:
-        return _fallback_news(simulation)
-
-    prompt = _build_prompt(simulation)
+        return []
     try:
         chat = LlmChat(
             api_key=_KEY,
-            session_id=f"f1-news-{simulation['year']}-{simulation.get('seed', 0)}",
-            system_message="Você é um jornalista esportivo especializado em Fórmula 1, redator do jornal 'GRID' no Brasil.",
-        ).with_model("gemini", "gemini-3.5-flash")
-        response = await chat.send_message(UserMessage(text=prompt))
+            session_id=f"f1-wrap-{simulation['year']}-{simulation.get('seed', 0)}",
+            system_message="Você é redator sênior do GRID cobrindo F1.",
+        ).with_model(*_MODEL)
+        response = await chat.send_message(UserMessage(text=_wrap_prompt(simulation)))
         text = response if isinstance(response, str) else str(response)
-        # extract JSON
-        match = re.search(r"\[.*\]", text, re.DOTALL)
-        if match:
-            data = json.loads(match.group(0))
-            if isinstance(data, list) and data:
-                return data
+        data = _extract_json(text)
+        if isinstance(data, list) and data:
+            return data
     except Exception as e:
-        print(f"[news] error: {e}")
-
-    return _fallback_news(simulation)
-
-
-def _fallback_news(simulation: dict) -> list[dict]:
-    s = simulation["summary"]
-    champ = s["champion"]
-    real = s["real_champion"]
-    ctor = s["constructor_champion"]
-    return [
-        {
-            "title": f"{champ['driver'].upper()} É CAMPEÃO EM {s['year']}",
-            "subtitle": f"Em realidade alternativa, {champ['team']} domina o mundial",
-            "body": f"{champ['driver']} conquistou o título mundial de {s['year']} pela equipe {champ['team']}, somando {champ['points']} pontos ao longo da temporada.\n\nNa história oficial, o troféu foi para {real['driver']} ({real['team']}). Nesta simulação, o resultado foi outro.\n\nA temporada teve {s['num_races']} etapas e uma disputa que só se definiu nas últimas corridas.",
-            "tag": "CAMPEONATO",
-        },
-        {
-            "title": f"{ctor['team'].upper()} LEVA O MUNDIAL DE CONSTRUTORES",
-            "subtitle": f"Equipe soma {ctor['points']} pontos na temporada simulada",
-            "body": f"A {ctor['team']} garantiu o título de construtores de {s['year']} nesta realidade alternativa.\n\nHistoricamente, o título ficou com {s['real_constructor_champion']}.\n\nA campanha da equipe foi consistente do primeiro ao último GP.",
-            "tag": "EQUIPES",
-        },
-    ]
+        print(f"[wrap-news] error: {e}")
+    return []

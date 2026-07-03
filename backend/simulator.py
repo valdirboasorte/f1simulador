@@ -113,12 +113,34 @@ def simulate_next_race(state: dict) -> dict:
         "round": round_idx,
         "circuit": circuit,
         "podium": podium,
-        "results": results[:10],
+        "results": results,  # ALL drivers, not just top 10
+        "standings_snapshot": _snapshot_standings(state),
+        "news": None,  # populated by server after Gemini call
     })
     state["current_race"] = round_idx
     if state["current_race"] >= state["total_races"]:
         state["finished"] = True
     return state
+
+
+def _snapshot_standings(state: dict) -> dict:
+    """Snapshot of drivers (top 10) + constructors after the current race."""
+    drivers_by_name = {d["name"]: d for d in state["drivers"]}
+    drivers = [
+        {
+            "driver": name,
+            "team": drivers_by_name[name]["team"],
+            "points": pts,
+            "wins": state["driver_wins"].get(name, 0),
+        }
+        for name, pts in state["driver_points"].items()
+    ]
+    drivers.sort(key=lambda x: (-x["points"], -x["wins"]))
+    constructors = [
+        {"team": t, "points": p}
+        for t, p in sorted(state["team_points"].items(), key=lambda kv: -kv[1])
+    ]
+    return {"drivers": drivers[:10], "constructors": constructors[:10]}
 
 
 def simulate_all_remaining(state: dict) -> dict:

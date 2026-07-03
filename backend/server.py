@@ -22,7 +22,7 @@ from simulator import (
     build_standings,
     build_summary,
 )
-from news_generator import generate_news
+from news_generator import generate_news, generate_race_news
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -123,17 +123,41 @@ async def next_race(sim_id: str):
     if state["finished"]:
         return _serialize(state)
     simulate_next_race(state)
+    # Auto-generate news for the race we just ran
+    last_race = state["races"][-1]
+    news = await generate_race_news(state, last_race)
+    last_race["news"] = news
     await _save_state(state)
     return _serialize(state)
 
 
 @api_router.post("/simulations/{sim_id}/finish")
 async def finish_all(sim_id: str):
-    """Simulate all remaining races in one shot."""
+    """Simulate all remaining races. News is generated only for the FINAL race
+    to avoid a very long request. Individual per-race news for skipped rounds
+    can be generated later via /race/{round}/news if needed."""
     state = await _load_state(sim_id)
     simulate_all_remaining(state)
+    if state["races"]:
+        last = state["races"][-1]
+        if not last.get("news"):
+            last["news"] = await generate_race_news(state, last)
     await _save_state(state)
     return _serialize(state)
+
+
+@api_router.post("/simulations/{sim_id}/race/{round_num}/news")
+async def make_race_news(sim_id: str, round_num: int):
+    """Generate news for a specific race if it's missing."""
+    state = await _load_state(sim_id)
+    target = next((r for r in state["races"] if r["round"] == round_num), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Race not found")
+    if target.get("news"):
+        return {"news": target["news"]}
+    target["news"] = await generate_race_news(state, target)
+    await _save_state(state)
+    return {"news": target["news"]}
 
 
 @api_router.post("/simulations/{sim_id}/news")
