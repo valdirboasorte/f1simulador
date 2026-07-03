@@ -180,13 +180,32 @@ const SimulationPage = () => {
       .catch(() => setError("Simulação não encontrada"));
   }, [id]);
 
+  const [liveRace, setLiveRace] = useState(null);
+  const [liveEvents, setLiveEvents] = useState([]);
+
   const onNext = async () => {
     if (!data || busy) return;
     setBusy(true);
+    setLiveEvents(["> Green flag! Largada em " + (data.circuits[data.current_race] || "")]);
+    setLiveRace(true);
     try {
       const upd = await runNextRace(id);
+      const race = upd.races[upd.races.length - 1];
+      const evts = [];
+      race.results.slice(0, 5).forEach((r, i) => {
+        evts.push(`> Volta ${20 + i * 8}: ${r.driver} em P${r.position || "DNF"}`);
+      });
+      const dnfs = race.results.filter((r) => r.dnf);
+      dnfs.forEach((r) => evts.push(`> DNF: ${r.driver} abandona`));
+      evts.push(`> BANDEIRADA! Vencedor: ${race.podium[0]?.driver || "-"}`);
+      for (let i = 0; i < evts.length; i++) {
+        await new Promise((res) => setTimeout(res, 700));
+        setLiveEvents((prev) => [...prev, evts[i]]);
+      }
+      await new Promise((res) => setTimeout(res, 900));
       setData(upd);
       setLatestRound(upd.current_race);
+      setLiveRace(false);
     } finally {
       setBusy(false);
     }
@@ -313,20 +332,12 @@ const SimulationPage = () => {
                     {busy ? "Rodando + IA..." : "Simular Próxima →"}
                   </button>
                   <button
-                    onClick={onFinishAll}
-                    disabled={busy}
-                    data-testid="finish-all-button"
-                    className="flex-1 border border-[#262626] text-white font-bold uppercase tracking-[0.22em] text-xs py-4 hover:border-white disabled:opacity-50 transition-colors"
-                  >
-                    Rodar Tudo »»
-                  </button>
-                  <button
                     onClick={onFinishFast}
                     disabled={busy}
-                    data-testid="finish-fast-button"
+                    data-testid="finish-all-button"
                     className="flex-1 border border-[#00F0FF] text-[#00F0FF] font-bold uppercase tracking-[0.22em] text-xs py-4 hover:bg-[#00F0FF] hover:text-black disabled:opacity-50 transition-colors"
                   >
-                    ⚡ Rápido (s/ IA)
+                    ⚡ Simular Rápido
                   </button>
                 </>
               ) : (

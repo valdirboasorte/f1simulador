@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 
-const HERO_IMG =
-  "https://images.unsplash.com/photo-1632726144626-6f6a8876e35d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHw0fHxmMSUyMHJhY2UlMjBjYXIlMjB0cmFjayUyMGRhcmt8ZW58MHx8fHwxNzgzMDQ5ODI3fDA&ixlib=rb-4.1.0&q=85";
+const HERO_IMG = "https://customer-assets.emergentagent.com/job_f1-history-sim/artifacts/0mo2nmg5_red-bull-tbt-2023.avif";
 
 export const Header = () => {
   const loc = useLocation();
