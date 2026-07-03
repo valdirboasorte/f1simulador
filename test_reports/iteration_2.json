@@ -1,0 +1,20 @@
+{
+  "summary": "Verified 1955 bug fix + full What-If system (13 events) + realism enforcement (max 2 drivers/team) + extended durations. Backend: 25/25 checks pass. Frontend: pending-event card renders correctly, choice-stay resolves and reveals Rodar 1955 button, resolved log appears.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "passed": [
+    "Create reality via POST /api/realities",
+    "GET /api/realities/{id} returns pending_event for all 13 event years: 1955 lemans_1955, 1968 clark_1968, 1970 rindt_1970, 1976 lauda_1976, 1978 peterson_1978, 1982 villeneuve_1982, 1993 prost_1993, 1994 senna_1994, 2006 schumi_2006, 2008 singapore_gate, 2013 kimi_2013, 2014 alonso_ferrari_2014, 2016 rosberg_2016",
+    "1955 BUG FIX: resolve(stay) → simulate(1955) 200 → finish → commit advances current_year=1956",
+    "Realism 1996 after senna_1994.survives_ferrari: Senna@Ferrari(96), Schumi@Benetton(97), all 6 teams ≤2 drivers",
+    "Realism 2015 after alonso_ferrari_2014.stays: Alonso@Ferrari, Vettel@Red Bull, all teams ≤2 drivers",
+    "Extended duration: 1994.survives_stays → Senna still on Williams in 2000 (rating 97)",
+    "Frontend RealityDetailPage renders data-testid=pending-event with title/description/detail for 1955",
+    "Frontend choice-stay click hides pending-event and reveals data-testid=start-year-button labeled 'RODAR 1955'",
+    "Frontend shows resolved-events log ('1955 Mercedes segue na F1') at bottom"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true
+}
