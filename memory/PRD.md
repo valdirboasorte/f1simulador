@@ -43,6 +43,7 @@ User choices:
 - [x] UI dark motorsport-editorial (Cabinet Grotesk + JetBrains Mono + Volt Yellow)
 - [x] Progresso salvo no Mongo — usuário pode retomar
 - [x] Botões "Simular Próxima" + "Rodar Tudo" + "Gerar Manchetes"
+- [x] **Transmissão AO VIVO** — overlay fullscreen com pista SVG animada (carros em movimento por volta), leaderboard TOP 10 com ▲/▼ de posições, feed de transmissão em tempo real (formação, largada, ultrapassagens, DNFs, safety car, pit window, volta rápida, bandeirada) e banner do vencedor. Toggle "Transmissão ao vivo" para desligar. Componente: `frontend/src/components/LiveRaceOverlay.jsx`.
 
 ## Backlog / Próximos passos
 - P1: Página `/historico` listando todas as simulações salvas
