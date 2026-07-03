@@ -35,6 +35,11 @@ api_router = APIRouter(prefix="/api")
 class SimulateRequest(BaseModel):
     year: int
     seed: Optional[int] = None
+    reality_id: Optional[str] = None
+
+
+class CreateRealityRequest(BaseModel):
+    name: str = "Minha Realidade"
 
 
 def _serialize(state: dict) -> dict:
@@ -107,6 +112,7 @@ async def create_simulation(req: SimulateRequest):
         raise HTTPException(status_code=500, detail="Failed to init simulation")
     state["id"] = str(uuid.uuid4())
     state["created_at"] = datetime.now(timezone.utc).isoformat()
+    state["reality_id"] = req.reality_id
     await _save_state(state)
     return _serialize(state)
 
@@ -186,6 +192,113 @@ async def list_simulations(limit: int = 20):
     cursor = db.simulations.find({}, {"_id": 0, "races": 0}).sort("created_at", -1).limit(limit)
     docs = await cursor.to_list(limit)
     return docs
+
+
+# ---------- MINHA REALIDADE (chronological career mode) ----------
+
+FIRST_YEAR = min(SEASONS.keys())
+LAST_YEAR = max(SEASONS.keys())
+
+
+def _new_reality(name: str) -> dict:
+    return {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "current_year": FIRST_YEAR,
+        "driver_stats": {},  # name -> {wins, podiums, championships, points_career, teams:[]}
+        "constructor_stats": {},  # team -> {wins, podiums, championships, points_career}
+        "seasons": [],  # committed seasons
+        "finished": False,
+    }
+
+
+def _bump(d: dict, key: str, field: str, amount: int = 1):
+    if key not in d:
+        d[key] = {"wins": 0, "podiums": 0, "championships": 0, "points_career": 0, "teams": []}
+    d[key][field] = d[key].get(field, 0) + amount
+
+
+@api_router.post("/realities")
+async def create_reality(req: CreateRealityRequest):
+    r = _new_reality(req.name or "Minha Realidade")
+    await db.realities.insert_one(r.copy())
+    r.pop("_id", None)
+    return r
+
+
+@api_router.get("/realities")
+async def list_realities():
+    cursor = db.realities.find({}, {"_id": 0}).sort("created_at", -1).limit(50)
+    return await cursor.to_list(50)
+
+
+@api_router.get("/realities/{rid}")
+async def get_reality(rid: str):
+    doc = await db.realities.find_one({"id": rid}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Reality not found")
+    return doc
+
+
+@api_router.post("/realities/{rid}/commit/{sim_id}")
+async def commit_season(rid: str, sim_id: str):
+    """Absorb a finished simulation into the reality timeline and advance year."""
+    reality = await db.realities.find_one({"id": rid}, {"_id": 0})
+    if not reality:
+        raise HTTPException(status_code=404, detail="Reality not found")
+    sim = await db.simulations.find_one({"id": sim_id}, {"_id": 0})
+    if not sim:
+        raise HTTPException(status_code=404, detail="Simulation not found")
+    if not sim.get("finished"):
+        raise HTTPException(status_code=400, detail="Season not finished")
+    year = sim["year"]
+    if year != reality["current_year"]:
+        raise HTTPException(status_code=400, detail=f"Reality expects year {reality['current_year']}, sim is {year}")
+    if any(s["year"] == year for s in reality["seasons"]):
+        raise HTTPException(status_code=400, detail="Season already committed")
+
+    ds = reality["driver_stats"]
+    cs = reality["constructor_stats"]
+
+    # aggregate per-race wins/podiums + season points
+    for race in sim["races"]:
+        for p in race.get("podium", []):
+            _bump(ds, p["driver"], "podiums")
+            _bump(cs, p["team"], "podiums")
+            if p["position"] == 1:
+                _bump(ds, p["driver"], "wins")
+                _bump(cs, p["team"], "wins")
+    # career points
+    standings = build_standings(sim)
+    for d in standings["driver_standings"]:
+        _bump(ds, d["driver"], "points_career", d["points"])
+        if d["team"] not in ds[d["driver"]]["teams"]:
+            ds[d["driver"]]["teams"].append(d["team"])
+    for c in standings["constructor_standings"]:
+        _bump(cs, c["team"], "points_career", c["points"])
+
+    summary = build_summary(sim)
+    if summary["champion"]:
+        _bump(ds, summary["champion"]["driver"], "championships")
+    if summary["constructor_champion"]:
+        _bump(cs, summary["constructor_champion"]["team"], "championships")
+
+    reality["seasons"].append({
+        "year": year,
+        "sim_id": sim_id,
+        "champion": summary["champion"],
+        "constructor_champion": summary["constructor_champion"],
+        "real_champion": summary["real_champion"]["driver"],
+        "upset": summary["upset"],
+    })
+    if year >= LAST_YEAR:
+        reality["finished"] = True
+    else:
+        reality["current_year"] = year + 1
+
+    await db.realities.replace_one({"id": rid}, reality)
+    return reality
 
 
 app.include_router(api_router)

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   fetchSimulation,
   runNextRace,
   finishSimulation,
+  commitSeason,
 } from "../lib/api";
 import { Header } from "../components/Layout";
 
@@ -165,10 +166,13 @@ const RaceCard = ({ race, isLatest, pointsScheme }) => {
 
 const SimulationPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [latestRound, setLatestRound] = useState(null);
+  const [committing, setCommitting] = useState(false);
+  const [committed, setCommitted] = useState(false);
 
   useEffect(() => {
     fetchSimulation(id)
@@ -197,6 +201,18 @@ const SimulationPage = () => {
       setLatestRound(upd.current_race);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const onCommit = async () => {
+    if (!data?.reality_id || committing) return;
+    setCommitting(true);
+    try {
+      await commitSeason(data.reality_id, id);
+      setCommitted(true);
+      setTimeout(() => navigate(`/realidade/${data.reality_id}`), 700);
+    } catch (e) {
+      setCommitting(false);
     }
   };
 
@@ -300,6 +316,21 @@ const SimulationPage = () => {
               )}
             </div>
           </div>
+          {data.finished && data.reality_id && (
+            <div className="mt-4 border-t border-[#262626] pt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="label text-neutral-400">
+                Esta temporada faz parte de uma <span className="text-[#E4FF00]">Minha Realidade</span>. Registre para avançar o ano.
+              </div>
+              <button
+                onClick={onCommit}
+                disabled={committing || committed}
+                data-testid="commit-reality-button"
+                className="bg-[#E4FF00] text-black font-black uppercase tracking-[0.22em] text-xs px-6 py-3 hover:bg-[#C6DB00] disabled:opacity-50"
+              >
+                {committed ? "✓ Registrado" : committing ? "Salvando..." : "Registrar & Avançar →"}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

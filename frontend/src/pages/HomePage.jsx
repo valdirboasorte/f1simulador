@@ -32,6 +32,28 @@ const HomePage = () => {
       <Header />
       <Hero onCta={scrollToPicker} />
 
+      {/* Minha Realidade promo */}
+      <section className="border-b border-[#262626] bg-[#0A0A0A]">
+        <div className="max-w-[1400px] mx-auto px-6 py-12 flex flex-wrap items-center justify-between gap-6">
+          <div>
+            <div className="label text-[#E4FF00] mb-2">// NOVO MODO</div>
+            <h3 className="font-head font-black uppercase text-2xl sm:text-3xl tracking-tighter">
+              Modo <span className="text-[#E4FF00]">Minha Realidade</span> — 1950 → 2025
+            </h3>
+            <p className="text-neutral-400 text-sm mt-2 max-w-xl">
+              Simule cronologicamente cada temporada e acumule vitórias, pódios e títulos por piloto/equipe. Sua timeline alternativa persistente.
+            </p>
+          </div>
+          <Link
+            to="/realidade"
+            data-testid="cta-reality"
+            className="border-2 border-[#E4FF00] text-[#E4FF00] font-black uppercase tracking-[0.22em] text-xs px-8 py-4 hover:bg-[#E4FF00] hover:text-black transition-colors"
+          >
+            Iniciar Timeline →
+          </Link>
+        </div>
+      </section>
+
       <section
         id="season-picker"
         className="max-w-[1400px] mx-auto px-6 py-20"

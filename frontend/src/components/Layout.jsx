@@ -37,6 +37,13 @@ export const Header = () => {
           >
             Temporadas
           </Link>
+          <Link
+            to="/realidade"
+            className={`hover:text-[#E4FF00] transition-colors ${loc.pathname.startsWith("/realidade") ? "text-[#E4FF00]" : "text-neutral-300"}`}
+            data-testid="nav-reality"
+          >
+            Minha Realidade
+          </Link>
         </nav>
       </div>
     </header>
