@@ -7,6 +7,7 @@ import {
   commitSeason,
 } from "../lib/api";
 import { Header } from "../components/Layout";
+import LiveRaceOverlay from "../components/LiveRaceOverlay";
 
 const RaceCard = ({ race, isLatest, pointsScheme }) => {
   const [expanded, setExpanded] = useState(isLatest);
@@ -180,36 +181,32 @@ const SimulationPage = () => {
       .catch(() => setError("Simulação não encontrada"));
   }, [id]);
 
-  const [liveRace, setLiveRace] = useState(null);
-  const [liveEvents, setLiveEvents] = useState([]);
+  const [liveRace, setLiveRace] = useState(null); // {circuit, round, raceResult|null}
+  const [autoLive, setAutoLive] = useState(true);
 
   const onNext = async () => {
     if (!data || busy) return;
     setBusy(true);
-    setLiveEvents(["> Green flag! Largada em " + (data.circuits[data.current_race] || "")]);
-    setLiveRace(true);
+    const upcomingCircuit = data.circuits[data.current_race];
+    const upcomingRound = data.current_race + 1;
+    if (autoLive) {
+      setLiveRace({ circuit: upcomingCircuit, round: upcomingRound, race: null });
+    }
     try {
       const upd = await runNextRace(id);
-      const race = upd.races[upd.races.length - 1];
-      const evts = [];
-      race.results.slice(0, 5).forEach((r, i) => {
-        evts.push(`> Volta ${20 + i * 8}: ${r.driver} em P${r.position || "DNF"}`);
-      });
-      const dnfs = race.results.filter((r) => r.dnf);
-      dnfs.forEach((r) => evts.push(`> DNF: ${r.driver} abandona`));
-      evts.push(`> BANDEIRADA! Vencedor: ${race.podium[0]?.driver || "-"}`);
-      for (let i = 0; i < evts.length; i++) {
-        await new Promise((res) => setTimeout(res, 700));
-        setLiveEvents((prev) => [...prev, evts[i]]);
-      }
-      await new Promise((res) => setTimeout(res, 900));
       setData(upd);
       setLatestRound(upd.current_race);
-      setLiveRace(false);
+      // Attach the freshly-run race to the overlay (mid-animation the API returns)
+      const runRace = upd.races[upd.races.length - 1];
+      if (autoLive) {
+        setLiveRace((prev) => (prev ? { ...prev, race: runRace } : prev));
+      }
     } finally {
       setBusy(false);
     }
   };
+
+  const onCloseLive = () => setLiveRace(null);
 
   const onFinishAll = async () => {
     if (!data || busy) return;
@@ -329,7 +326,7 @@ const SimulationPage = () => {
                     data-testid="next-race-button"
                     className="flex-1 bg-[#E4FF00] text-black font-black uppercase tracking-[0.22em] text-xs py-4 hover:bg-[#C6DB00] disabled:opacity-50 transition-colors"
                   >
-                    {busy ? "Rodando + IA..." : "Simular Próxima →"}
+                    {busy ? (autoLive ? "▶ AO VIVO..." : "Rodando + IA...") : "▶ Simular Próxima"}
                   </button>
                   <button
                     onClick={onFinishFast}
@@ -347,6 +344,20 @@ const SimulationPage = () => {
               )}
             </div>
           </div>
+          {!data.finished && (
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <label className="flex items-center gap-2 text-[10px] tracking-[0.22em] uppercase text-neutral-500 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={autoLive}
+                  onChange={(e) => setAutoLive(e.target.checked)}
+                  className="accent-[#E4FF00]"
+                  data-testid="live-toggle"
+                />
+                Transmissão ao vivo
+              </label>
+            </div>
+          )}
           {data.finished && data.reality_id && (
             <div className="mt-4 border-t border-[#262626] pt-4 flex flex-wrap items-center justify-between gap-3">
               <div className="label text-neutral-400">
@@ -439,6 +450,16 @@ const SimulationPage = () => {
       <footer className="border-t border-[#262626] py-10 text-center text-neutral-600 text-xs tracking-[0.22em] uppercase">
         SIM #{data.id?.slice(0, 8).toUpperCase()} · SEED {data.seed}
       </footer>
+
+      {liveRace && (
+        <LiveRaceOverlay
+          circuit={liveRace.circuit}
+          round={liveRace.round}
+          drivers={data.drivers}
+          race={liveRace.race}
+          onDone={onCloseLive}
+        />
+      )}
     </div>
   );
 };
