@@ -1,0 +1,125 @@
+{
+  "theme_and_archetype": {
+    "domain": "Motorsport Simulator & Sports Editorial",
+    "theme": "DARK",
+    "archetype": "Archetype 2: The Performance Pro + Archetype 4: Swiss Brutalism",
+    "reasoning": "High-energy, authoritative, data-dense. Avoids the clichéd 'F1 Red' and 'AI Purple'. Relies on Deep Obsidian and Volt/Cyber Yellow for maximum contrast and an aggressive, tactical motorsport journalism feel."
+  },
+  "typography": {
+    "fonts": {
+      "headings": "Cabinet Grotesk, sans-serif",
+      "body": "Manrope, sans-serif",
+      "mono_data": "JetBrains Mono, monospace"
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter uppercase font-black",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight uppercase font-extrabold",
+      "h3": "text-xl sm:text-2xl tracking-tight font-bold",
+      "h4": "text-lg sm:text-xl font-bold",
+      "body": "text-base font-medium leading-relaxed",
+      "labels": "text-xs tracking-[0.2em] uppercase font-bold"
+    },
+    "rules": [
+      "CRITICAL: Do NOT use Inter, Roboto, or standard sans. Install fonts from Google Fonts/Fontshare or use standard fallback 'sans-serif' if unavailable. Prefer Cabinet Grotesk for headings, Manrope for body, and JetBrains Mono for data grids.",
+      "Use JetBrains Mono for all numeric data (lap times, points, years) to ensure tabular alignment.",
+      "Headings must have tight letter spacing."
+    ]
+  },
+  "color_palette": {
+    "background": {
+      "base": "#0A0A0A",
+      "surface_1": "#141414",
+      "surface_2": "#1F1F1F"
+    },
+    "text": {
+      "primary": "#FFFFFF",
+      "secondary": "#A3A3A3",
+      "tertiary": "#737373"
+    },
+    "accents": {
+      "primary": "#E4FF00",
+      "primary_hover": "#C6DB00",
+      "secondary": "#00F0FF",
+      "danger": "#FF3B30",
+      "success": "#00FF66"
+    },
+    "borders": {
+      "subtle": "#262626",
+      "active": "#E4FF00"
+    },
+    "rules": [
+      "No full-screen gradients. Use flat dark colors with sharp 1px borders.",
+      "Text over images MUST have text shadow or a dark gradient overlay.",
+      "Volt Yellow (#E4FF00) is used sparingly for primary actions (Simulate button) and highlighting the simulated champion in tables."
+    ]
+  },
+  "spacing_and_layout": {
+    "grid_system": {
+      "marketing_hero": "grid-cols-1 md:grid-cols-12 gap-8",
+      "dashboard": "grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-6"
+    },
+    "spacing_scale": "Use generous padding for sections (py-24), but tight padding for data components (p-4, p-6).",
+    "surfaces": {
+      "cards": "bg-[#141414] border border-[#262626] rounded-none",
+      "glass": "backdrop-blur-xl bg-black/60 border-b border-white/10"
+    }
+  },
+  "components": {
+    "season_selector": {
+      "description": "A dense, tactical numerical grid or timeline slider to select years (1950-2025).",
+      "styling": "Use JetBrains Mono. Selected year has bg-[#E4FF00] text-black. Unselected years have text-[#A3A3A3] hover:text-white hover:bg-[#1F1F1F]."
+    },
+    "standings_table": {
+      "description": "Constructors and Drivers standings.",
+      "styling": "Control Room Grid. 1px solid border-b border-[#262626] per row. No rounded corners. Highlight the alternate champion row in #E4FF00 text with a subtle #E4FF00/10 background. Roster data is left-aligned, points are right-aligned."
+    },
+    "race_timeline": {
+      "description": "Vertical line on the left side displaying the season's calendar.",
+      "styling": "Border-l-2 border-[#262626]. Active/completed races have a bright #00F0FF node. Contains small cards with podium results."
+    },
+    "news_bento": {
+      "description": "Grid of AI-generated articles in Portuguese (e.g. 'Manchetes da Temporada').",
+      "styling": "Bento Grid Mode A (Tetris). Mixture of square and tall cards. Large headline layered over a dark-tinted image (bg-black/50 overlay). Hovering scales the image slightly and brightens the border."
+    },
+    "simulate_button": {
+      "description": "Primary CTA to re-run simulation.",
+      "styling": "bg-[#E4FF00] text-black font-black uppercase tracking-[0.2em] px-8 py-4 rounded-none hover:bg-[#C6DB00] transition-colors border-2 border-transparent focus:border-white."
+    }
+  },
+  "motion_and_interaction": {
+    "hover_states": "Cards lift slightly (-translate-y-1). Image overlays go from black/60 to black/30. Borders glow.",
+    "page_transitions": "Staggered fade-up for table rows and news bento items.",
+    "simulate_action": "When simulation is running, display a retro-futuristic terminal loader with rapid scrolling data (ASCII or mono text) before revealing the alternate history."
+  },
+  "media_and_images": {
+    "instructions": "Use these exact URLs for hero sections, news article backgrounds, and driver placeholders. Do not use generic placeholders like via.placeholder.com. ONLY use these URLs.",
+    "hero_and_backgrounds": [
+      {
+        "url": "https://images.unsplash.com/photo-1632726144626-6f6a8876e35d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHw0fHxmMSUyMHJhY2UlMjBjYXIlMjB0cmFjayUyMGRhcmt8ZW58MHx8fHwxNzgzMDQ5ODI3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "F1 car on track - Use as the main hero background with a heavy black/60 overlay."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1614949194403-9602bdc14a3a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwzfHxmMSUyMHJhY2UlMjBjYXIlMjB0cmFjayUyMGRhcmt8ZW58MHx8fHwxNzgzMDQ5ODI3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "F1 car red/black - Use for major dramatic news articles."
+      }
+    ],
+    "news_thumbnails": [
+      {
+        "url": "https://images.unsplash.com/photo-1742744652734-d5ec6598b5da?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNDR8MHwxfHNlYXJjaHwxfHxmMSUyMHJhY2UlMjBjYXIlMjB0cmFjayUyMGRhcmt8ZW58MHx8fHwxNzgzMDQ5ODI3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Race car - Secondary news article"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1552255472-3330e5928013?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwyfHxyYWNpbmclMjBkcml2ZXIlMjBoZWxtZXR8ZW58MHx8fHwxNzgzMDQ5ODI3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Driver in white helmet - Focus piece news article"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1533573271545-c1604421c980?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwzfHxyYWNpbmclMjBkcml2ZXIlMjBoZWxtZXR8ZW58MHx8fHwxNzgzMDQ5ODI3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Helmet close up - Championship victory article"
+      }
+    ]
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure white or Volt Yellow text has at least 4.5:1 ratio against #0A0A0A or #141414.",
+    "testing": "All interactive elements (buttons, selectors, timeline nodes, etc.) MUST include data-testid attributes in kebab-case format (e.g., data-testid=\"simulate-button\", data-testid=\"season-selector-1994\")."
+  }
+}
