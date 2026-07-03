@@ -1,0 +1,23 @@
+{
+  "summary": "Backend testing: template-based news generation and Mercedes 'stay' persistence 1956-2025. All checks passed.",
+  "tested_scope": ["backend", "integration"],
+  "passed": [
+    "POST /api/simulate for 1988 creates sim without running any race",
+    "POST /api/simulations/{id}/next twice: each race has news with title/subtitle/body/tag fields populated",
+    "News is template-based (no Gemini/LiteLLM calls observed in backend logs during test window)",
+    "Round-trip latency for /next is ~103-112ms (network incl.), backend processing well under 100ms",
+    "Multiple seeds (11,22,33,44,55,66) produce visibly different templates: DRAMA/DOMINA/TRIUNFO/CRAVA POLE variants",
+    "Reality created; current_year jumped to 1955 via pymongo; resolve lemans_1955 stay adds 11 team_override effects",
+    "Simulate 1980 (reality_id): Mercedes has Niki Lauda (per override 1979-1985)",
+    "Simulate 2000 (reality_id): Mercedes has Hakkinen + Coulthard (both overrides active 1996-2001/2005)",
+    "Simulate 2020 (reality_id): Mercedes has Hamilton + Bottas (Hamilton override 2007-2025, Bottas from base)",
+    "Team capacity max 2 preserved across 1980/2000/2020 - no team exceeds 2 drivers",
+    "GET/POST /api/simulations/{id}/finish?fast=true returns finished=true, races=16, races_with_news=0"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "not tested (backend-only request)"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "notes": "No Gemini calls after test start time (15:43+). Mercedes team_override chain works end-to-end 1956-2025 with Fangio/Moss/Brabham/Stewart/Peterson/Lauda/Prost/Hakkinen/Coulthard/Schumacher/Hamilton coverage."
+}

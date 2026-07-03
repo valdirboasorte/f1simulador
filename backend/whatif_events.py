@@ -7,10 +7,18 @@ EVENTS = {
         "description": "84 mortos em Le Mans. Mercedes se retira do automobilismo ao fim de 1955.",
         "choices": [
             {"id": "real", "label": "Aconteceu como na história", "detail": "Mercedes se retira ao fim de 1955.", "effects": []},
-            {"id": "stay", "label": "Mercedes segue na F1", "detail": "Fangio permanece na Mercedes até se aposentar; Moss os acompanha.", "effects": [
+            {"id": "stay", "label": "Mercedes segue na F1 para sempre", "detail": "Mercedes nunca se retira. Traz grandes pilotos ao longo da história.", "effects": [
                 {"type": "team_override", "driver": "Juan Manuel Fangio", "team": "Mercedes", "from_year": 1956, "until_year": 1958, "rating": 96},
                 {"type": "team_override", "driver": "Stirling Moss", "team": "Mercedes", "from_year": 1956, "until_year": 1961, "rating": 95},
-                {"type": "rating_delta", "driver": "Juan Manuel Fangio", "delta": 2, "from_year": 1956, "until_year": 1958},
+                {"type": "team_override", "driver": "Jack Brabham", "team": "Mercedes", "from_year": 1959, "until_year": 1965, "rating": 92},
+                {"type": "team_override", "driver": "Jackie Stewart", "team": "Mercedes", "from_year": 1966, "until_year": 1973, "rating": 95},
+                {"type": "team_override", "driver": "Ronnie Peterson", "team": "Mercedes", "from_year": 1971, "until_year": 1978, "rating": 91},
+                {"type": "team_override", "driver": "Niki Lauda", "team": "Mercedes", "from_year": 1979, "until_year": 1985, "rating": 93},
+                {"type": "team_override", "driver": "Alain Prost", "team": "Mercedes", "from_year": 1986, "until_year": 1993, "rating": 95},
+                {"type": "team_override", "driver": "Mika Hakkinen", "team": "Mercedes", "from_year": 1994, "until_year": 2001, "rating": 93},
+                {"type": "team_override", "driver": "David Coulthard", "team": "Mercedes", "from_year": 1996, "until_year": 2005, "rating": 88},
+                {"type": "team_override", "driver": "Michael Schumacher", "team": "Mercedes", "from_year": 2002, "until_year": 2009, "rating": 96},
+                {"type": "team_override", "driver": "Lewis Hamilton", "team": "Mercedes", "from_year": 2007, "until_year": 2025, "rating": 96},
             ]},
         ],
     },
