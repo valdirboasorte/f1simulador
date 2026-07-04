@@ -124,7 +124,7 @@ def simulate_next_race(state: dict) -> dict:
 
 
 def _snapshot_standings(state: dict) -> dict:
-    """Snapshot of drivers (top 10) + constructors after the current race."""
+    """Snapshot of ALL drivers + constructors after the current race."""
     drivers_by_name = {d["name"]: d for d in state["drivers"]}
     drivers = [
         {
@@ -140,7 +140,7 @@ def _snapshot_standings(state: dict) -> dict:
         {"team": t, "points": p}
         for t, p in sorted(state["team_points"].items(), key=lambda kv: -kv[1])
     ]
-    return {"drivers": drivers[:10], "constructors": constructors[:10]}
+    return {"drivers": drivers, "constructors": constructors}
 
 
 def simulate_all_remaining(state: dict) -> dict:
