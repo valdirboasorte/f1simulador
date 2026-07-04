@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the new interactive Live Race animation overlay on the F1 Season Simulator app"
+user_problem_statement: "Test the updated Live Race animation overlay with unique circuit SVG shapes, all drivers on track with position numbers, and full grid leaderboard"
 
 backend:
   - task: "MongoDB connection configuration"
@@ -121,7 +121,22 @@ backend:
         comment: "Created /app/backend/.env with MONGO_URL=mongodb://localhost:27017 and DB_NAME=f1_simulator. Backend now starts successfully."
 
 frontend:
-  - task: "Live Race Overlay - Full Implementation"
+  - task: "Live Race Overlay - Unique Circuit SVG Shapes"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/lib/tracks.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated tracks.js with unique hand-drawn SVG paths for each circuit (Monaco, Monza, Spa, Silverstone, Suzuka, Interlagos, Sakhir, Melbourne, Jeddah, etc.)"
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Each circuit displays a completely unique, hand-drawn SVG track shape. Tested Sakhir (desert layout with multiple turns), Jeddah (flowing street circuit), and Melbourne (lake circuit). All three tracks are visually distinct and recognizable. Track shapes correctly loaded from tracks.js library with 30+ unique circuit designs."
+
+  - task: "Live Race Overlay - All Drivers on Track with Position Numbers"
     implemented: true
     working: true
     file: "/app/frontend/src/components/LiveRaceOverlay.jsx"
@@ -131,10 +146,40 @@ frontend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Implemented LiveRaceOverlay component with full animation, track visualization, leaderboard, and feed"
+        comment: "Updated TrackDot component to display position numbers (01, 02, 03...) inside car circles instead of driver initials. All drivers from season roster now appear on track."
       - working: true
         agent: "testing"
-        comment: "✅ ALL TESTS PASSED. Overlay appears correctly with all required elements: R01 header, circuit name (SAKHIR), LAP counter (0→40), SVG track with animated car dots, TOP 10 AO VIVO leaderboard, TRANSMISSÃO feed with incremental updates (formation, green flag, overtakes, DNFs, safety car, pit stops, fastest lap, chequered flag), winner banner (MAX VERSTAPPEN in yellow), and proper close/skip buttons. Animation completes in ~12 seconds."
+        comment: "✅ VERIFIED: All drivers from season roster appear on track as colored circles with position numbers inside (01, 02, 03, etc.). Tested 2024 season with 10 drivers - all 10 cars visible on track with correct position numbering. Position numbers are rendered inside circles using <text> elements with proper styling. No initials displayed next to cars as per requirements."
+
+  - task: "Live Race Overlay - Full Grid Leaderboard (GRID AO VIVO)"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/LiveRaceOverlay.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Updated leaderboard header from 'TOP 10 AO VIVO' to '// GRID AO VIVO' and modified to show ALL drivers (not just top 10). Added scrollable container for full grid display."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Leaderboard header correctly displays '// GRID AO VIVO' with driver count (10/10). Shows ALL drivers from the season roster in a scrollable container. Each driver row displays position number, team color bar, surname, team name, and position change indicators. DNF drivers shown separately below running drivers. Leaderboard updates in real-time during race animation."
+
+  - task: "Live Race Overlay - Circuit Header with Country Code"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/LiveRaceOverlay.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Circuit header displays '// CIRCUITO — [name]' with country code on the right"
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: Circuit header correctly displays '// CIRCUITO — [circuit name]' with country code (BH for Bahrain, SA for Saudi Arabia, AU for Australia). Tested across multiple races - all show correct circuit names and country codes from tracks.js data."
 
   - task: "Live Race Overlay - Toggle Control"
     implemented: true
@@ -198,15 +243,15 @@ frontend:
 
 metadata:
   created_by: "testing_agent"
-  version: "1.0"
-  test_sequence: 1
+  version: "1.1"
+  test_sequence: 2
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Live Race Overlay - Full Implementation"
-    - "Live Race Overlay - Toggle Control"
-    - "Live Race Overlay - Skip Functionality"
+    - "Live Race Overlay - Unique Circuit SVG Shapes"
+    - "Live Race Overlay - All Drivers on Track with Position Numbers"
+    - "Live Race Overlay - Full Grid Leaderboard (GRID AO VIVO)"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
@@ -216,3 +261,5 @@ agent_communication:
     message: "Initial testing revealed missing environment files. Created /app/backend/.env with MongoDB connection string and /app/frontend/.env with REACT_APP_BACKEND_URL. Both services now running correctly."
   - agent: "testing"
     message: "Comprehensive testing completed for Live Race animation overlay. All features working as expected: overlay appearance, animation progression, feed updates, winner banner, skip functionality, toggle control, and fast path. No console errors detected. Screenshots captured at key states for visual verification."
+  - agent: "testing"
+    message: "Updated overlay testing completed. ALL NEW FEATURES VERIFIED: (1) Unique hand-drawn SVG circuit shapes for each track - tested Sakhir, Jeddah, Melbourne - all visually distinct. (2) All drivers appear on track with position numbers (01, 02, etc.) inside colored circles - no initials. (3) Leaderboard header changed to '// GRID AO VIVO' showing all drivers with scrollable container. (4) Circuit headers display with country codes. Backend data note: 2024 season has 10 drivers configured (not 20), but frontend correctly displays ALL drivers from roster. Historical seasons (1985, 1970) not available in UI (only 2020-2025 shown). No console errors. All tests passed."

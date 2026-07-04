@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getTrack } from "../lib/tracks";
 
 /**
  * LiveRaceOverlay - fullscreen animated race broadcast.
@@ -134,34 +135,41 @@ const interpolateOrder = (grid, finalOrder, dnfLap, lap, totalLaps) => {
 };
 
 // ---------------------------------------------------------------------------
-// Track SVG (stylised oval-ish figure-eight-ish path)
+// Track viewBox is fixed at 1000x600 (matches all paths in lib/tracks.js).
 // ---------------------------------------------------------------------------
-const TRACK_PATH =
-  "M 90 200 C 90 90, 220 60, 360 90 C 500 120, 560 60, 700 90 C 830 118, 900 200, 830 280 C 760 355, 600 300, 470 320 C 340 340, 230 380, 140 330 C 60 285, 90 260, 90 200 Z";
-const TRACK_LENGTH = 1900; // approximate for path length usage
+const TRACK_VIEWBOX = "0 0 1000 600";
 
-const TrackDot = ({ pct, color, label, dim, glow }) => {
+const TrackDot = ({ color, pos, dim, glow }) => {
+  const radius = dim ? 8 : 11;
   return (
-    <g transform={`translate(-9,-9)`}>
+    <g transform={`translate(-${radius},-${radius})`}>
       <circle
-        r={dim ? 5 : 7}
+        cx={radius}
+        cy={radius}
+        r={radius}
         fill={color}
         stroke="#0A0A0A"
         strokeWidth="2"
         style={{
           filter: glow
-            ? `drop-shadow(0 0 6px ${color})`
-            : "drop-shadow(0 0 2px rgba(0,0,0,0.6))",
+            ? `drop-shadow(0 0 8px ${color})`
+            : "drop-shadow(0 0 2px rgba(0,0,0,0.7))",
+          opacity: dim ? 0.85 : 1,
         }}
       />
       <text
-        x={12}
-        y={4}
-        fill="#F2F2F2"
-        fontSize="10"
-        style={{ fontFamily: "JetBrains Mono, monospace", fontWeight: 700 }}
+        x={radius}
+        y={radius + 3.5}
+        textAnchor="middle"
+        fill="#0A0A0A"
+        fontSize={dim ? 9 : 10}
+        style={{
+          fontFamily: "JetBrains Mono, monospace",
+          fontWeight: 800,
+          pointerEvents: "none",
+        }}
       >
-        {label}
+        {String(pos).padStart(2, "0")}
       </text>
     </g>
   );
@@ -372,14 +380,18 @@ const LiveRaceOverlay = ({
     ? interpolateOrder(grid, fo, dnfLap, lap, totalLaps)
     : { running: grid, retired: [] };
 
-  // Compute path positions for each running car (spread along track based on
-  // rank + fractional offset — the leader is furthest along, backmarkers behind).
-  // Add small jitter so it doesn't look like a train.
+  const track = useMemo(() => getTrack(circuit), [circuit]);
+
+  // Compute path positions for ALL running cars — the leader is furthest
+  // along (pct = 1 near start/finish line, then decreases going backwards).
+  // We use the position order to space cars evenly around the track and add a
+  // tiny per-driver jitter so they don't lock into a perfect train.
   const totalRunning = running.length || 1;
+  const spacing = Math.min(0.9 / totalRunning, 0.055); // clamp so grid isn't stretched
   const carsWithPct = running.map((d, i) => {
-    const base = 1 - i / totalRunning;
-    const jitter = ((hashCode(d.name) % 7) - 3) * 0.005;
-    return { ...d, pct: (base + jitter + 1) % 1 };
+    const base = 0.98 - i * spacing;
+    const jitter = ((hashCode(d.name) % 9) - 4) * 0.003;
+    return { ...d, pct: ((base + jitter) % 1 + 1) % 1 };
   });
 
   const feedBottomRef = useRef(null);
@@ -439,51 +451,54 @@ const LiveRaceOverlay = ({
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden">
           {/* Track visualisation */}
           <div className="lg:col-span-6 border-r border-[#262626] p-4 flex flex-col">
-            <div className="label text-neutral-500 mb-2">// CIRCUITO</div>
-            <div className="relative flex-1 min-h-[260px]">
+            <div className="label text-neutral-500 mb-2 flex items-center justify-between">
+              <span>// CIRCUITO — {track.name}</span>
+              {track.country && (
+                <span className="font-mono-num text-[#E4FF00]">{track.country}</span>
+              )}
+            </div>
+            <div className="relative flex-1 min-h-[280px]">
               <svg
-                viewBox="0 0 950 400"
+                viewBox={TRACK_VIEWBOX}
                 className="w-full h-full"
                 preserveAspectRatio="xMidYMid meet"
               >
                 {/* Track outer glow */}
                 <path
-                  d={TRACK_PATH}
+                  d={track.path}
                   fill="none"
                   stroke="#1a1a1a"
-                  strokeWidth="28"
+                  strokeWidth="30"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
                 <path
-                  d={TRACK_PATH}
+                  d={track.path}
                   fill="none"
                   stroke="#2A2A2A"
-                  strokeWidth="16"
+                  strokeWidth="18"
                   strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
                 <path
-                  d={TRACK_PATH}
+                  d={track.path}
                   fill="none"
                   stroke="#0A0A0A"
                   strokeWidth="1.5"
                   strokeDasharray="4 8"
                 />
-                {/* Start/finish line marker */}
-                <g transform="translate(90,200)">
-                  <rect x="-2" y="-14" width="4" height="28" fill="#E4FF00" />
-                </g>
 
                 {/* Cars */}
                 {carsWithPct.map((d, i) => {
-                  const pct = d.pct;
                   const c = teamColor(d.team);
                   const isLeader = i === 0;
                   return (
                     <CarOnTrack
                       key={d.name}
-                      pct={pct}
+                      pathD={track.path}
+                      pct={d.pct}
                       color={c}
-                      label={initials(d.name)}
+                      pos={i + 1}
                       leader={isLeader}
                       dim={i > 9}
                     />
@@ -491,44 +506,49 @@ const LiveRaceOverlay = ({
                 })}
               </svg>
             </div>
-            <div className="mt-3 text-[10px] tracking-[0.22em] uppercase text-neutral-600 flex justify-between">
-              <span>PITLANE</span>
-              <span>DRS ATIVO</span>
+            <div className="mt-3 text-[10px] tracking-[0.22em] uppercase text-neutral-600 flex flex-wrap gap-2 justify-between">
+              <span>{track.clockwise === false ? "← ANTI-HORÁRIO" : "HORÁRIO →"}</span>
+              <span>GRID {drivers.length}</span>
               <span>{totalRunning} EM PISTA · {retired.length} DNF</span>
             </div>
           </div>
 
           {/* Leaderboard */}
           <div className="lg:col-span-3 border-r border-[#262626] p-4 overflow-y-auto">
-            <div className="label text-[#E4FF00] mb-2">// TOP 10 AO VIVO</div>
+            <div className="label text-[#E4FF00] mb-2 flex items-center justify-between">
+              <span>// GRID AO VIVO</span>
+              <span className="font-mono-num text-neutral-500">
+                {String(running.length).padStart(2, "0")}/{drivers.length}
+              </span>
+            </div>
             <div className="space-y-1">
-              {running.slice(0, 10).map((d, i) => {
+              {running.map((d, i) => {
                 const c = teamColor(d.team);
                 const prevPos = prevOrder.current.indexOf(d.name);
                 const delta = prevPos === -1 ? 0 : prevPos - i;
                 return (
                   <div
                     key={d.name}
-                    className={`flex items-center gap-2 px-2 py-1.5 border border-[#1A1A1A] bg-[#111] transition-all duration-500 ${
+                    className={`flex items-center gap-2 px-2 py-1 border border-[#1A1A1A] bg-[#111] transition-all duration-500 ${
                       i === 0 ? "border-[#E4FF00] bg-[#141400]" : ""
-                    }`}
+                    } ${i > 9 ? "opacity-70" : ""}`}
                     style={{ transform: `translateY(0)` }}
                   >
-                    <span className="font-mono-num text-neutral-500 text-xs w-5 text-right">
+                    <span className="font-mono-num text-neutral-500 text-[10px] w-5 text-right">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <span
-                      className="w-1.5 h-6 rounded-sm shrink-0"
+                      className="w-1.5 h-5 rounded-sm shrink-0"
                       style={{ backgroundColor: c }}
                     />
                     <span
-                      className={`flex-1 font-head font-bold uppercase text-xs tracking-tight truncate ${
+                      className={`flex-1 font-head font-bold uppercase text-[11px] tracking-tight truncate ${
                         i === 0 ? "text-[#E4FF00]" : ""
                       }`}
                     >
                       {surname(d.name)}
                     </span>
-                    <span className="font-mono-num text-[10px] text-neutral-500 truncate max-w-[60px]">
+                    <span className="font-mono-num text-[9px] text-neutral-500 truncate max-w-[55px]">
                       {d.team}
                     </span>
                     {delta !== 0 && (
@@ -637,24 +657,29 @@ const LiveRaceOverlay = ({
 };
 
 // ---------------------------------------------------------------------------
-// Car placed at a given fraction (0..1) along the track path.
+// Car placed at a given fraction (0..1) along an arbitrary track path.
 // ---------------------------------------------------------------------------
-const CarOnTrack = ({ pct, color, label, leader, dim }) => {
-  // Ref to the invisible path we measure
+const CarOnTrack = ({ pathD, pct, color, pos, leader, dim }) => {
   const [pt, setPt] = useState({ x: 0, y: 0 });
   const pathRef = useRef(null);
   useEffect(() => {
     const el = pathRef.current;
     if (!el) return;
-    const len = el.getTotalLength();
-    const p = el.getPointAtLength((1 - pct) * len);
-    setPt({ x: p.x, y: p.y });
-  }, [pct]);
+    try {
+      const len = el.getTotalLength();
+      // Cars run in the natural path direction (which is roughly clockwise for
+      // most of our paths). The leader is at the maximum pct so we invert.
+      const p = el.getPointAtLength((1 - pct) * len);
+      setPt({ x: p.x, y: p.y });
+    } catch (e) {
+      /* SVG not yet in DOM — ignore */
+    }
+  }, [pct, pathD]);
   return (
     <>
       <path
         ref={pathRef}
-        d={TRACK_PATH}
+        d={pathD}
         fill="none"
         stroke="transparent"
         pointerEvents="none"
@@ -663,7 +688,7 @@ const CarOnTrack = ({ pct, color, label, leader, dim }) => {
         transform={`translate(${pt.x}, ${pt.y})`}
         style={{ transition: "transform 0.32s linear" }}
       >
-        <TrackDot pct={pct} color={color} label={label} dim={dim} glow={leader} />
+        <TrackDot color={color} pos={pos} dim={dim} glow={leader} />
       </g>
     </>
   );
