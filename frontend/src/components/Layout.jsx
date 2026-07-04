@@ -56,8 +56,8 @@ export const Hero = ({ onCta }) => (
       style={{ backgroundImage: `url(${HERO_IMG})` }}
     />
     <div className="absolute inset-0 bg-black/70" />
-    <div className="relative max-w-[1400px] mx-auto px-6 py-24 sm:py-32 grid grid-cols-1 md:grid-cols-12 gap-8">
-      <div className="md:col-span-8">
+    <div className="relative max-w-[1400px] mx-auto px-6 py-24 sm:py-32">
+      <div>
         <div className="label text-[#E4FF00] mb-6" data-testid="hero-label">
           // 1950 — 2025 · 76 TEMPORADAS
         </div>
@@ -79,21 +79,6 @@ export const Hero = ({ onCta }) => (
         >
           Escolher Temporada →
         </button>
-      </div>
-      <div className="md:col-span-4 border-l border-[#262626] pl-8 hidden md:flex flex-col justify-between">
-        <div>
-          <div className="label mb-3">Modo</div>
-          <div className="font-mono-num text-2xl leading-tight">
-            ALT<br />REALITY<br />ENGINE
-          </div>
-        </div>
-        <div>
-          <div className="label mb-3">Fonte</div>
-          <div className="text-neutral-400 text-sm">
-            Ratings históricos +<br />ruído estocástico<br />
-            <span className="text-[#E4FF00]">Gemini 3 Flash</span> p/ notícias
-          </div>
-        </div>
       </div>
     </div>
     {/* ticker */}
