@@ -354,4 +354,81 @@ export const getTrack = (circuitName) => {
   };
 };
 
+// ---------------------------------------------------------------------------
+// Real F1 lap counts (recent/typical) per circuit. Fallback = 60.
+// Historical circuits use approximate historical counts.
+// ---------------------------------------------------------------------------
+const LAP_COUNTS = {
+  Monaco: 78,
+  Monza: 53,
+  "Spa-Francorchamps": 44,
+  Silverstone: 52,
+  Suzuka: 53,
+  Interlagos: 71,
+  Nurburgring: 60,
+  Sakhir: 57,
+  Melbourne: 58,
+  Barcelona: 66,
+  Hungaroring: 70,
+  Zandvoort: 72,
+  Imola: 63,
+  "Marina Bay": 62,
+  Baku: 51,
+  Austin: 56,
+  Shanghai: 56,
+  Sepang: 56,
+  Spielberg: 71,
+  Jeddah: 50,
+  Miami: 57,
+  Indianapolis: 73,
+  "Yas Marina": 58,
+  Montreal: 70,
+  Hockenheim: 67,
+  Estoril: 71,
+  Adelaide: 82,
+  Kyalami: 78,
+  Mugello: 59,
+  Portimao: 66,
+  Sochi: 53,
+  Istanbul: 58,
+  // Historical / retired circuits (approximate)
+  Reims: 60,
+  Aintree: 90,
+  Sebring: 42,
+  "Watkins Glen": 108,
+  "East London": 82,
+  Riverside: 75,
+  Rouen: 90,
+  "Mexico City": 71,
+  "Clermont-Ferrand": 38,
+  "Brands Hatch": 76,
+  Jarama: 75,
+  "Long Beach": 80,
+  Zolder: 70,
+  Detroit: 63,
+  "Paul Ricard": 53,
+  Osterreichring: 54,
+  "Buenos Aires": 72,
+  "Magny-Cours": 70,
+  Losail: 57,
+  "Las Vegas": 50,
+};
+
+export const getLapCount = (circuitName) => {
+  if (!circuitName) return 60;
+  if (LAP_COUNTS[circuitName]) return LAP_COUNTS[circuitName];
+  const lc = circuitName.toLowerCase();
+  for (const k of Object.keys(LAP_COUNTS)) {
+    if (k.toLowerCase() === lc) return LAP_COUNTS[k];
+    if (
+      lc.includes(k.toLowerCase()) ||
+      k.toLowerCase().includes(lc.split(" ")[0])
+    ) {
+      return LAP_COUNTS[k];
+    }
+  }
+  // Deterministic pseudo-random default per circuit (44-72)
+  return 44 + (hash(circuitName) % 29);
+};
+
 export default getTrack;

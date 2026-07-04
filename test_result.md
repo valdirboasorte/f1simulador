@@ -135,6 +135,36 @@ backend:
         agent: "testing"
         comment: "✅ VERIFIED: Created comprehensive backend_test.py and tested race snapshots. All 24 races in 2024 season contain full driver roster (10 drivers, 6 constructors). Verified: (1) POST /api/simulate creates simulation with 10 drivers, (2) POST /api/simulations/{id}/next for race 1 - snapshot has 10 drivers sorted by points/wins, (3) POST /api/simulations/{id}/next for race 2 - snapshot has 10 drivers, (4) POST /api/simulations/{id}/finish?fast=true completes season, (5) ALL 24 race snapshots verified to contain full 10-driver roster, (6) Final standings show all drivers from P1 (Max Verstappen 402pts) to P10 (Sergio Perez 81pts), (7) Constructor snapshot contains all 6 teams. Snapshots correctly sorted by points descending, then wins descending. No slicing to top 10 detected."
 
+  - task: "Data expansion to 20 drivers per season (2010-2025)"
+    implemented: true
+    working: true
+    file: "/app/backend/f1_data.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Expanded F1 season data to include 20 drivers (10 teams x 2 drivers) for seasons 2010-2025. Older seasons (pre-2010) remain with ~10 drivers."
+      - working: true
+        agent: "testing"
+        comment: "✅ VERIFIED: All seasons 2010-2025 now have exactly 20 drivers (10 teams x 2 drivers). Tested: 2025 (20 drivers, 10 teams), 2024 (20 drivers, 10 teams), 2023 (20 drivers, 10 teams), 2022 (20 drivers, 10 teams), 2021 (20 drivers, 10 teams), 2020 (20 drivers, 10 teams), 2015 (20 drivers, 10 teams), 2010 (20 drivers, 10 teams). Season 2000 correctly has 10 drivers (not expanded). All expected teams (Red Bull, McLaren, Ferrari, Mercedes) present in tested years. 2025 champion confirmed as Lando Norris (McLaren)."
+
+  - task: "Constructor snapshot includes ALL teams (not just those with points)"
+    implemented: true
+    working: true
+    file: "/app/backend/simulator.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: false
+        agent: "testing"
+        comment: "Bug found: _snapshot_standings() and build_standings() only included constructors with points. After race 1, only 6 constructors appeared instead of all 10 teams."
+      - working: true
+        agent: "testing"
+        comment: "✅ FIXED: Modified _snapshot_standings() and build_standings() to include ALL teams from driver roster, even those with 0 points. Verified with 2025 simulation (seed=42): Race 1 snapshot now shows all 10 constructors (McLaren 26pts, Red Bull 24pts, Ferrari 20pts, Mercedes 17pts, Aston Martin 10pts, Kick Sauber 4pts, Alpine 0pts, RB 0pts, Williams 0pts, Haas 0pts). Ran 3 additional races - all snapshots correctly show 20 drivers and 10 constructors."
+
 frontend:
   - task: "Live Race Overlay - Unique Circuit SVG Shapes"
     implemented: true
@@ -258,13 +288,13 @@ frontend:
 
 metadata:
   created_by: "testing_agent"
-  version: "1.2"
-  test_sequence: 3
+  version: "1.3"
+  test_sequence: 4
   run_ui: true
 
 test_plan:
   current_focus:
-    - "Race snapshot contains ALL drivers (not top 10)"
+    - "Data expansion to 20 drivers per season (2010-2025)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -278,3 +308,5 @@ agent_communication:
     message: "Updated overlay testing completed. ALL NEW FEATURES VERIFIED: (1) Unique hand-drawn SVG circuit shapes for each track - tested Sakhir, Jeddah, Melbourne - all visually distinct. (2) All drivers appear on track with position numbers (01, 02, etc.) inside colored circles - no initials. (3) Leaderboard header changed to '// GRID AO VIVO' showing all drivers with scrollable container. (4) Circuit headers display with country codes. Backend data note: 2024 season has 10 drivers configured (not 20), but frontend correctly displays ALL drivers from roster. Historical seasons (1985, 1970) not available in UI (only 2020-2025 shown). No console errors. All tests passed."
   - agent: "testing"
     message: "Backend API testing completed for race snapshot fix. Created /app/backend_test.py to verify _snapshot_standings() returns ALL drivers. Tested full simulation flow: create simulation (2024, seed=123), run 2 races individually, finish remaining 22 races with fast=true. VERIFIED: All 24 race snapshots contain full 10-driver roster (not sliced to top 10), snapshots correctly sorted by points/wins descending, constructor snapshots contain all 6 teams. Final standings: P1 Max Verstappen (402pts) to P10 Sergio Perez (81pts). Backend change working correctly across all API endpoints."
+  - agent: "testing"
+    message: "Data expansion testing completed. ALL TESTS PASSED (13/13): ✅ Seasons 2010-2025 all have 20 drivers (10 teams x 2 drivers). ✅ Season 2000 correctly has 10 drivers (not expanded). ✅ 2025 champion is Lando Norris (McLaren). ✅ All expected teams (Red Bull, McLaren, Ferrari, Mercedes) present in years 2010, 2015, 2020, 2025. ✅ Simulation with 2025 data (seed=42) works correctly with 20 drivers and 10 constructors in snapshots. ✅ Ran 4 races total - all snapshots show 20 drivers and 10 constructors. MINOR FIX APPLIED: Found and fixed bug where _snapshot_standings() only showed constructors with points (6 teams after race 1). Modified to show ALL 10 teams including those with 0 points. Backend restarted and verified working."

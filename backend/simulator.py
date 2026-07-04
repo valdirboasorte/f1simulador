@@ -136,10 +136,15 @@ def _snapshot_standings(state: dict) -> dict:
         for name, pts in state["driver_points"].items()
     ]
     drivers.sort(key=lambda x: (-x["points"], -x["wins"]))
+    
+    # Get all unique teams from the driver roster
+    all_teams = {d["team"] for d in state["drivers"]}
     constructors = [
-        {"team": t, "points": p}
-        for t, p in sorted(state["team_points"].items(), key=lambda kv: -kv[1])
+        {"team": t, "points": state["team_points"].get(t, 0)}
+        for t in all_teams
     ]
+    constructors.sort(key=lambda x: -x["points"])
+    
     return {"drivers": drivers, "constructors": constructors}
 
 
@@ -163,10 +168,13 @@ def build_standings(state: dict) -> dict:
         })
     driver_standings.sort(key=lambda x: (-x["points"], -x["wins"], -x["podiums"]))
 
+    # Get all unique teams from the driver roster
+    all_teams = {d["team"] for d in state["drivers"]}
     constructor_standings = [
-        {"team": t, "points": p}
-        for t, p in sorted(state["team_points"].items(), key=lambda kv: -kv[1])
+        {"team": t, "points": state["team_points"].get(t, 0)}
+        for t in all_teams
     ]
+    constructor_standings.sort(key=lambda x: -x["points"])
     return {
         "driver_standings": driver_standings,
         "constructor_standings": constructor_standings,

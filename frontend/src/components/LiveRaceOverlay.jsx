@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getTrack } from "../lib/tracks";
+import { getTrack, getLapCount } from "../lib/tracks";
 
 /**
  * LiveRaceOverlay - fullscreen animated race broadcast.
@@ -184,9 +184,22 @@ const LiveRaceOverlay = ({
   drivers,
   race,
   onDone,
-  totalLaps = 40,
-  speedMs = 320,
+  totalLaps: totalLapsProp,
+  speedMs: speedMsProp,
 }) => {
+  // Real-world lap counts vary widely (Monaco 78, Spa 44, Interlagos 71, ...).
+  // We normalise animation duration to ~15-22s regardless of lap count.
+  const totalLaps = useMemo(
+    () => totalLapsProp || getLapCount(circuit),
+    [totalLapsProp, circuit]
+  );
+  const speedMs = useMemo(() => {
+    if (speedMsProp) return speedMsProp;
+    // target ~17 seconds of animation, capped between 180 and 480ms per lap
+    const target = 17000 / totalLaps;
+    return Math.max(180, Math.min(480, Math.round(target)));
+  }, [speedMsProp, totalLaps]);
+
   const [lap, setLap] = useState(0);
   const [feed, setFeed] = useState([]); // {t, kind, text}
   const [state, setState] = useState("pre"); // pre | running | flag | done
@@ -243,6 +256,53 @@ const LiveRaceOverlay = ({
     return () => clearTimeout(timer);
   }, [state, lap, totalLaps, speedMs]);
 
+  // Pre-computed race event schedule (deterministic per seed).
+  // - safety car deployments: 0-2 windows during the race
+  // - pit window opens once, in a semi-random middle lap
+  // - fastest lap is claimed 1-3 times at random laps (mostly in the back half)
+  const eventSchedule = useMemo(() => {
+    const rr = makeRng(seed + 991);
+    const events = {
+      scLaps: [],
+      pitWindow: null,
+      fastestLaps: [],
+    };
+    // Safety car chance ~55% for at least one, 20% chance of a second
+    if (rr() < 0.55) {
+      const l = Math.floor(rr() * (totalLaps * 0.55)) + Math.floor(totalLaps * 0.15);
+      events.scLaps.push(Math.max(3, Math.min(totalLaps - 5, l)));
+      if (rr() < 0.2) {
+        const l2 = Math.floor(rr() * (totalLaps * 0.3)) + Math.floor(totalLaps * 0.55);
+        events.scLaps.push(Math.max(events.scLaps[0] + 6, Math.min(totalLaps - 4, l2)));
+      }
+    }
+    // Pit window
+    events.pitWindow = Math.max(
+      4,
+      Math.min(totalLaps - 8, Math.floor(totalLaps * (0.35 + rr() * 0.2)))
+    );
+    // Fastest lap events (1-3 across the race, weighted to the second half)
+    const flCount = 1 + Math.floor(rr() * 3);
+    const used = new Set();
+    for (let i = 0; i < flCount; i++) {
+      // Bias to second half
+      const range = totalLaps * 0.6;
+      const start = totalLaps * 0.35;
+      let l = Math.floor(start + rr() * range);
+      // Avoid last lap and duplicates
+      while (used.has(l) && l > 1) l -= 1;
+      if (l < totalLaps - 1) {
+        events.fastestLaps.push(l);
+        used.add(l);
+      }
+    }
+    events.fastestLaps.sort((a, b) => a - b);
+    return events;
+  }, [seed, totalLaps]);
+
+  // Which driver currently holds the fastest lap
+  const fastestHolder = useRef(null);
+
   // Snapshot at each lap => detect overtakes/DNFs/etc
   const prevOrder = useRef(grid.map((d) => d.name));
   useEffect(() => {
@@ -271,8 +331,12 @@ const LiveRaceOverlay = ({
           "roda solta",
           "quebra de câmbio",
           "motor superaquecido",
-          "acidente na S do Senna",
+          "acidente na curva rápida",
           "erro no pitlane",
+          "vazamento hidráulico",
+          "trava do freio",
+          "bandeirinha eletrônica",
+          "colisão múltipla",
         ];
         const rr = reasons[Math.floor(rng() * reasons.length)];
         setFeed((f) => [
@@ -318,38 +382,59 @@ const LiveRaceOverlay = ({
       }
     }
 
-    // Random flavour: safety car, virtual, fastest lap, pit stops
-    if (lap === Math.floor(totalLaps * 0.35) && rng() > 0.4) {
+    // Random flavour: safety car, pit window, fastest lap — driven by the
+    // pre-computed event schedule so every race has its own storyline.
+    if (eventSchedule.scLaps.includes(lap)) {
+      const reasons = [
+        "Detritos na reta principal",
+        "Toque forte na curva 1",
+        "Abandono em local perigoso",
+        "Chuva forte se intensifica",
+        "Bandeira amarela vira SAFETY CAR",
+      ];
+      const why = reasons[Math.floor(rng() * reasons.length)];
       setFeed((f) => [
         ...f,
         {
           t: lap,
           kind: "sc",
-          text: `V${lap} — SAFETY CAR na pista. Pelotão reagrupa.`,
+          text: `V${lap} — SAFETY CAR na pista. ${why}. Pelotão reagrupa.`,
         },
       ]);
     }
-    if (lap === Math.floor(totalLaps * 0.55)) {
+    if (lap === eventSchedule.pitWindow) {
       setFeed((f) => [
         ...f,
         {
           t: lap,
           kind: "pit",
-          text: `V${lap} — Janela de pit stops aberta. Estratégias divergem.`,
+          text: `V${lap} — Janela de pit stops aberta. Estratégias divergem no boxes.`,
         },
       ]);
     }
-    if (lap === Math.floor(totalLaps * 0.75) && running[0]) {
-      setFeed((f) => [
-        ...f,
-        {
-          t: lap,
-          kind: "fast",
-          text: `V${lap} — VOLTA MAIS RÁPIDA: ${surname(
-            running[0].name
-          )} imprime o ritmo.`,
-        },
-      ]);
+    if (eventSchedule.fastestLaps.includes(lap) && running.length > 0) {
+      // Pick a plausible FL candidate: usually one of the top 5 running drivers
+      const pool = running.slice(0, Math.min(5, running.length));
+      const cand = pool[Math.floor(rng() * pool.length)];
+      if (cand && cand.name !== fastestHolder.current) {
+        fastestHolder.current = cand.name;
+        const flavors = [
+          `imprime nova marca`,
+          `bate o próprio recorde`,
+          `arranca a volta mais rápida`,
+          `voa na reta principal`,
+          `crava o melhor giro da prova`,
+        ];
+        const v = flavors[Math.floor(rng() * flavors.length)];
+        setFeed((f) => [
+          ...f,
+          {
+            t: lap,
+            kind: "fast",
+            text: `V${lap} — VOLTA MAIS RÁPIDA: ${surname(cand.name)} (${cand.team}) ${v}.`,
+          },
+        ]);
+      }
     }
 
     prevOrder.current = currentNames;
@@ -369,7 +454,7 @@ const LiveRaceOverlay = ({
       setState("flag");
       setTimeout(() => setShowResults(true), 900);
     }
-  }, [lap, state, grid, drivers, dnfLap, totalLaps, rng]);
+  }, [lap, state, grid, drivers, dnfLap, totalLaps, rng, eventSchedule]);
 
   // -------------------------------------------------------------------------
   // Render
